@@ -27,7 +27,10 @@ if (query.trim()) {
 }
 ---
 
-<Layout title={query ? `${query} - OpenShelf Search` : "Search - OpenShelf"}>
+<Layout
+  title={query ? `${query} - Search` : "Search Books"}
+  description={query ? `Search results for "${query}" on OpenShelf. Find and read books for free.` : "Search millions of books by title, author, or topic. Read them for free on OpenShelf."}
+>
   <h1 class="section-title">Search books</h1>
   <BookSearch query={query} results={results} />
 </Layout>

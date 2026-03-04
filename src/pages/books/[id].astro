@@ -58,9 +58,43 @@ const ratingsCount: number | undefined = info.ratingsCount;
 
 // Can we show a reader?
 const canRead = embeddable || viewability === "PARTIAL" || viewability === "ALL_PAGES";
+
+// SEO
+const plainDescription = description.replace(/<[^>]*>/g, "").slice(0, 160);
+const seoDescription = authors.length
+  ? `${title} by ${authors.join(", ")}. ${plainDescription}`
+  : `${title}. ${plainDescription}`;
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Book",
+  name: title,
+  ...(authors.length && { author: authors.map(a => ({ "@type": "Person", name: a })) }),
+  ...(description && { description: plainDescription }),
+  ...(thumbnail && { image: thumbnail }),
+  ...(isbn && { isbn }),
+  ...(publisher && { publisher: { "@type": "Organization", name: publisher } }),
+  ...(publishedDate && { datePublished: publishedDate }),
+  ...(pageCount && { numberOfPages: pageCount }),
+  ...(averageRating && {
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: averageRating,
+      ...(ratingsCount && { ratingCount: ratingsCount }),
+      bestRating: 5,
+    },
+  }),
+  ...(categories.length && { genre: categories }),
+  url: `https://openshelf.vercel.app/books/${id}`,
+};
 ---
 
-<Layout title={`${title} - OpenShelf`}>
+<Layout
+  title={title}
+  description={seoDescription.slice(0, 160)}
+  image={thumbnail || "/og-default.png"}
+  type="book"
+>
   <a href="/books" class="back-link">
     <span class="material-symbols-outlined">arrow_back</span>
     Browse
@@ -181,6 +215,8 @@ const canRead = embeddable || viewability === "PARTIAL" || viewability === "ALL_
       )}
     </div>
   </div>
+
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 </Layout>
 
 {canRead && (

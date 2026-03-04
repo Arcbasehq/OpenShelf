@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /login
+Disallow: /signup
+Disallow: /settings
+Disallow: /favorites
+
+Sitemap: https://openshelf.vercel.app/sitemap-index.xml

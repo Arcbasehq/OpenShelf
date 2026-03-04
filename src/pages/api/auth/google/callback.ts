@@ -7,14 +7,17 @@ export const GET: APIRoute = async ({ request }) => {
   const code = url.searchParams.get("code");
   const error = url.searchParams.get("error");
 
-  if (error || !code) {
-    return Response.redirect(new URL("/login?error=google_denied", url.origin).toString(), 302);
-  }
-
   const clientId = import.meta.env.GOOGLE_CLIENT_ID;
   const clientSecret = import.meta.env.GOOGLE_CLIENT_SECRET;
   const redirectUri = import.meta.env.GOOGLE_REDIRECT_URI;
   const convexUrl = import.meta.env.PUBLIC_CONVEX_URL || import.meta.env.CONVEX_URL;
+
+  // Derive the real origin from the redirect URI (works behind Vercel's proxy)
+  const origin = new URL(redirectUri || "http://localhost:4321").origin;
+
+  if (error || !code) {
+    return Response.redirect(`${origin}/login?error=google_denied`, 302);
+  }
 
   if (!clientId || !clientSecret || !redirectUri || !convexUrl) {
     return new Response("Server misconfigured.", { status: 500 });
@@ -37,7 +40,7 @@ export const GET: APIRoute = async ({ request }) => {
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       console.error("Google token exchange failed:", err);
-      return Response.redirect(new URL("/login?error=google_failed", url.origin).toString(), 302);
+      return Response.redirect(`${origin}/login?error=google_failed`, 302);
     }
 
     const tokens = await tokenRes.json();
@@ -48,14 +51,14 @@ export const GET: APIRoute = async ({ request }) => {
     });
 
     if (!userInfoRes.ok) {
-      return Response.redirect(new URL("/login?error=google_failed", url.origin).toString(), 302);
+      return Response.redirect(`${origin}/login?error=google_failed`, 302);
     }
 
     const googleUser = await userInfoRes.json();
     const { email, name, picture } = googleUser;
 
     if (!email) {
-      return Response.redirect(new URL("/login?error=google_no_email", url.origin).toString(), 302);
+      return Response.redirect(`${origin}/login?error=google_no_email`, 302);
     }
 
     // Find or create user in Convex
@@ -66,8 +69,8 @@ export const GET: APIRoute = async ({ request }) => {
       avatarUrl: picture || "",
     });
 
-    // Build redirect with auth data as query params (picked up by the landing page script)
-    const successUrl = new URL("/api/auth/google/success", url.origin);
+    // Build redirect with auth data as query params
+    const successUrl = new URL("/api/auth/google/success", origin);
     successUrl.searchParams.set("token", result.userId);
     successUrl.searchParams.set("name", result.name);
     successUrl.searchParams.set("email", result.email);
@@ -75,6 +78,6 @@ export const GET: APIRoute = async ({ request }) => {
     return Response.redirect(successUrl.toString(), 302);
   } catch (err) {
     console.error("Google OAuth error:", err);
-    return Response.redirect(new URL("/login?error=google_failed", url.origin).toString(), 302);
+    return Response.redirect(`${origin}/login?error=google_failed`, 302);
   }
 };

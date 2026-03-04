@@ -1,0 +1,17 @@
+{
+  "name": "OpenShelf",
+  "short_name": "OpenShelf",
+  "description": "Discover, search, and read millions of books for free.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a73e8",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

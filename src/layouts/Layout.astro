@@ -2,8 +2,25 @@
 import SpeedInsights from "@vercel/speed-insights/astro";
 interface Props {
   title?: string;
+  description?: string;
+  image?: string;
+  type?: string;
+  noindex?: boolean;
+  canonical?: string;
 }
-const { title = "OpenShelf" } = Astro.props;
+const {
+  title = "OpenShelf",
+  description = "Discover, search, and read millions of books for free. OpenShelf is an open source book platform powered by Google Books.",
+  image = "/og-default.png",
+  type = "website",
+  noindex = false,
+  canonical,
+} = Astro.props;
+
+const siteUrl = "https://openshelf.vercel.app";
+const fullTitle = title === "OpenShelf" ? "OpenShelf | Free and Open Source Books" : `${title} | OpenShelf`;
+const canonicalUrl = canonical || new URL(Astro.url.pathname, siteUrl).toString();
+const ogImage = image.startsWith("http") ? image : `${siteUrl}${image}`;
 ---
 
 <!doctype html>
@@ -12,17 +29,37 @@ const { title = "OpenShelf" } = Astro.props;
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="description" content="OpenShelf -- Discover, search, and read books online." />
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="OpenShelf" />
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="theme-color" content="#1a73e8" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:site_name" content="OpenShelf" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-    <title>{title} | Free and Open Source Books</title>
+    <title>{fullTitle}</title>
     <script is:inline>
       (function() {
         if (localStorage.getItem("theme") === "dark") {
@@ -33,6 +70,7 @@ const { title = "OpenShelf" } = Astro.props;
         }
       })();
     </script>
+    <slot name="head" />
   </head>
   <body>
     <header class="top-bar">

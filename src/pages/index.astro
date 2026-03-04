@@ -41,7 +41,7 @@ try {
 }
 ---
 
-<Layout title="OpenShelf">
+<Layout title="OpenShelf" description="Discover, search, and read millions of books for free. OpenShelf is an open source book platform with no ads, no fees, and no tracking.">
   <section class="hero">
     <h1>Find your next great read</h1>
     <p class="hero-sub">Search millions of books, save your favorites, and start reading -- all in one place.</p>
@@ -168,6 +168,19 @@ try {
       </div>
     </div>
   </section>
+
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "OpenShelf",
+    url: "https://openshelf.vercel.app",
+    description: "Discover, search, and read millions of books for free.",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: "https://openshelf.vercel.app/search?q={search_term_string}",
+      "query-input": "required name=search_term_string",
+    },
+  })} />
 </Layout>
 
 <script>
