@@ -81,11 +81,20 @@ import Layout from "../layouts/Layout.astro";
   });
 
   document.getElementById("google-btn")?.addEventListener("click", () => {
-    const convexUrl = (import.meta as any).env?.PUBLIC_CONVEX_URL;
-    if (convexUrl) {
-      window.location.href = `${convexUrl}/auth/google`;
-    }
+    window.location.href = "/api/auth/google";
   });
+
+  // Show Google auth errors from redirect
+  const params = new URLSearchParams(window.location.search);
+  const googleError = params.get("error");
+  if (googleError && errorMsg) {
+    const messages: Record<string, string> = {
+      google_denied: "Google sign-in was cancelled.",
+      google_failed: "Google sign-in failed. Please try again.",
+      google_no_email: "No email address found from Google.",
+    };
+    errorMsg.textContent = messages[googleError] || "Sign-in failed.";
+  }
 </script>
 
 <style>

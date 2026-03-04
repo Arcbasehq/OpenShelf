@@ -49,6 +49,25 @@ import Layout from "../layouts/Layout.astro";
           </form>
         </div>
 
+        <!-- Preferences -->
+        <div class="settings-section">
+          <h2 class="settings-section-title">
+            <span class="material-symbols-outlined">tune</span>
+            Preferences
+          </h2>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <span class="toggle-label">Mobile view</span>
+              <span class="toggle-desc">Optimizes the layout for "Add to Home Screen" so OpenShelf feels like a native app.</span>
+            </div>
+            <button class="toggle-switch" id="mobile-view-toggle" role="switch" aria-checked="false">
+              <span class="toggle-track">
+                <span class="toggle-thumb"></span>
+              </span>
+            </button>
+          </div>
+        </div>
+
         <!-- Security (email only) -->
         <div class="settings-section" id="security-section" style="display:none">
           <h2 class="settings-section-title">
@@ -286,6 +305,7 @@ import Layout from "../layouts/Layout.astro";
         localStorage.removeItem("convex_token");
         localStorage.removeItem("user_name");
         localStorage.removeItem("user_email");
+        localStorage.removeItem("mobile_view");
         window.location.href = "/";
       } catch (err: any) {
         if (errorEl) errorEl.textContent = err.message;
@@ -295,6 +315,27 @@ import Layout from "../layouts/Layout.astro";
         }
       }
     });
+
+    // Mobile view toggle
+    const mobileToggle = document.getElementById("mobile-view-toggle");
+    if (mobileToggle) {
+      const isOn = localStorage.getItem("mobile_view") === "true";
+      mobileToggle.setAttribute("aria-checked", String(isOn));
+
+      mobileToggle.addEventListener("click", () => {
+        const current = mobileToggle.getAttribute("aria-checked") === "true";
+        const next = !current;
+        mobileToggle.setAttribute("aria-checked", String(next));
+        localStorage.setItem("mobile_view", String(next));
+
+        // Apply or remove immediately
+        if (next) {
+          document.documentElement.setAttribute("data-mobile-view", "true");
+        } else {
+          document.documentElement.removeAttribute("data-mobile-view");
+        }
+      });
+    }
   }
 
   initSettings();
@@ -417,6 +458,63 @@ import Layout from "../layouts/Layout.astro";
 
   .submit-btn {
     margin-top: 4px;
+  }
+
+  /* Toggle */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .toggle-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+  }
+  .toggle-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text);
+  }
+  .toggle-desc {
+    font-size: 12px;
+    color: var(--color-text-tertiary);
+    line-height: 1.4;
+  }
+  .toggle-switch {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .toggle-track {
+    display: block;
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--color-border);
+    position: relative;
+    transition: background 200ms var(--ease);
+  }
+  .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: transform 200ms var(--ease);
+  }
+  .toggle-switch[aria-checked="true"] .toggle-track {
+    background: var(--color-primary);
+  }
+  .toggle-switch[aria-checked="true"] .toggle-thumb {
+    transform: translateX(20px);
   }
 
   .danger-zone {

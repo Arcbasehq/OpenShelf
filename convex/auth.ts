@@ -63,6 +63,41 @@ export const getUser = query({
   },
 });
 
+/** Sign in or create account via Google OAuth. */
+export const googleSignIn = mutation({
+  args: {
+    email: v.string(),
+    name: v.string(),
+    avatarUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check if user already exists
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+
+    if (existing) {
+      // Update avatar if changed
+      if (args.avatarUrl && args.avatarUrl !== existing.avatarUrl) {
+        await ctx.db.patch(existing._id, { avatarUrl: args.avatarUrl });
+      }
+      return { userId: existing._id, name: existing.name, email: existing.email };
+    }
+
+    // Create new user
+    const userId = await ctx.db.insert("users", {
+      name: args.name,
+      email: args.email,
+      provider: "google",
+      avatarUrl: args.avatarUrl,
+      tokenIdentifier: `google:${args.email}`,
+    });
+
+    return { userId, name: args.name, email: args.email };
+  },
+});
+
 /** Update user profile (display name). */
 export const updateProfile = mutation({
   args: {

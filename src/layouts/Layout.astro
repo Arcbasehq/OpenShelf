@@ -11,8 +11,13 @@ const { title = "OpenShelf" } = Astro.props;
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="OpenShelf -- Discover, search, and read books online." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="OpenShelf" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -22,6 +27,9 @@ const { title = "OpenShelf" } = Astro.props;
       (function() {
         if (localStorage.getItem("theme") === "dark") {
           document.documentElement.setAttribute("data-theme", "dark");
+        }
+        if (localStorage.getItem("mobile_view") === "true") {
+          document.documentElement.setAttribute("data-mobile-view", "true");
         }
       })();
     </script>
@@ -843,6 +851,101 @@ const { title = "OpenShelf" } = Astro.props;
         .cookie-icon { display: none; }
         .cookie-actions { width: 100%; }
         .cookie-actions .btn { flex: 1; }
+      }
+
+      /* ── Mobile View (App Mode) ── */
+      :root[data-mobile-view="true"] {
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      :root[data-mobile-view="true"] .top-bar {
+        padding-top: var(--safe-top);
+      }
+      :root[data-mobile-view="true"] .top-bar-inner {
+        padding: 0 12px;
+        height: 52px;
+        gap: 4px;
+      }
+      :root[data-mobile-view="true"] .logo {
+        font-size: 16px;
+        margin-right: 8px;
+        gap: 8px;
+      }
+      :root[data-mobile-view="true"] .logo-icon {
+        width: 24px;
+        height: 24px;
+      }
+      :root[data-mobile-view="true"] .nav-links {
+        gap: 0;
+      }
+      :root[data-mobile-view="true"] .nav-links a {
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+      :root[data-mobile-view="true"] .theme-toggle {
+        padding: 0 6px !important;
+      }
+      :root[data-mobile-view="true"] main {
+        padding: 16px 12px 80px;
+        min-height: calc(100vh - 52px - var(--safe-top) - var(--safe-bottom));
+      }
+      :root[data-mobile-view="true"] .book-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 12px;
+      }
+      :root[data-mobile-view="true"] .book-card .card-body {
+        padding: 10px 12px;
+      }
+      :root[data-mobile-view="true"] .book-card .card-title {
+        font-size: 12px;
+      }
+      :root[data-mobile-view="true"] .book-card .card-authors {
+        font-size: 11px;
+      }
+      :root[data-mobile-view="true"] .search-bar {
+        height: 46px;
+        margin-bottom: 20px;
+        padding: 0 4px 0 16px;
+      }
+      :root[data-mobile-view="true"] .search-bar input {
+        font-size: 15px;
+      }
+      :root[data-mobile-view="true"] footer {
+        padding-bottom: var(--safe-bottom);
+      }
+      :root[data-mobile-view="true"] .footer-inner {
+        padding: 12px 12px;
+        font-size: 11px;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      :root[data-mobile-view="true"] .section-title {
+        font-size: 20px;
+      }
+      :root[data-mobile-view="true"] .section-subtitle {
+        font-size: 13px;
+        margin-bottom: 20px;
+      }
+      :root[data-mobile-view="true"] .empty-state {
+        padding: 48px 16px;
+      }
+      :root[data-mobile-view="true"] .avatar-dropdown {
+        min-width: 200px;
+      }
+      :root[data-mobile-view="true"] .cookie-inner {
+        flex-wrap: wrap;
+        padding: 14px 12px;
+        gap: 10px;
+        padding-bottom: calc(14px + var(--safe-bottom));
+      }
+      :root[data-mobile-view="true"] .cookie-icon {
+        display: none;
+      }
+      :root[data-mobile-view="true"] .cookie-actions {
+        width: 100%;
+      }
+      :root[data-mobile-view="true"] .cookie-actions .btn {
+        flex: 1;
       }
 
       /* ── Responsive ── */

@@ -86,10 +86,7 @@ import Layout from "../layouts/Layout.astro";
   });
 
   document.getElementById("google-btn")?.addEventListener("click", () => {
-    const convexUrl = (import.meta as any).env?.PUBLIC_CONVEX_URL;
-    if (convexUrl) {
-      window.location.href = `${convexUrl}/auth/google`;
-    }
+    window.location.href = "/api/auth/google";
   });
 </script>
 
