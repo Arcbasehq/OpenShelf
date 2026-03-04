@@ -1,0 +1,480 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Settings - OpenShelf">
+  <div class="settings-page">
+    <div class="settings-card" id="settings-card">
+      <div id="settings-loading" class="loading-state">
+        <span class="material-symbols-outlined spin">progress_activity</span>
+        <span>Loading settings...</span>
+      </div>
+
+      <div id="settings-noauth" style="display:none">
+        <div class="empty-state">
+          <span class="material-symbols-outlined">login</span>
+          <h2>Sign in to access settings</h2>
+          <p>You need to be signed in to view your account settings.</p>
+          <a href="/login" class="btn btn-primary">Sign in</a>
+        </div>
+      </div>
+
+      <div id="settings-content" style="display:none">
+        <!-- Profile -->
+        <div class="settings-section">
+          <h2 class="settings-section-title">
+            <span class="material-symbols-outlined">person</span>
+            Profile
+          </h2>
+          <form id="profile-form">
+            <div class="input-group">
+              <label for="display-name">Display name</label>
+              <input type="text" id="display-name" name="name" required />
+            </div>
+            <div class="input-group">
+              <label for="display-email">Email</label>
+              <input type="email" id="display-email" disabled />
+            </div>
+            <div class="info-row">
+              <span class="info-label">Account type</span>
+              <span class="chip" id="provider-chip"></span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Member since</span>
+              <span class="info-value" id="member-since"></span>
+            </div>
+            <p class="error-msg" id="profile-error"></p>
+            <p class="success-msg" id="profile-success"></p>
+            <button class="btn btn-primary submit-btn" type="submit">Save changes</button>
+          </form>
+        </div>
+
+        <!-- Security (email only) -->
+        <div class="settings-section" id="security-section" style="display:none">
+          <h2 class="settings-section-title">
+            <span class="material-symbols-outlined">lock</span>
+            Security
+          </h2>
+          <form id="password-form">
+            <div class="input-group">
+              <label for="current-password">Current password</label>
+              <input type="password" id="current-password" required minlength="8" />
+            </div>
+            <div class="input-group">
+              <label for="new-password">New password</label>
+              <input type="password" id="new-password" required minlength="8" placeholder="Min 8 characters" />
+            </div>
+            <div class="input-group">
+              <label for="confirm-password">Confirm new password</label>
+              <input type="password" id="confirm-password" required minlength="8" />
+            </div>
+            <p class="error-msg" id="password-error"></p>
+            <p class="success-msg" id="password-success"></p>
+            <button class="btn btn-primary submit-btn" type="submit">Change password</button>
+          </form>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="settings-section danger-zone">
+          <h2 class="settings-section-title">
+            <span class="material-symbols-outlined">warning</span>
+            Danger zone
+          </h2>
+          <p class="danger-description">Permanently delete your account and all associated data. This action cannot be undone.</p>
+          <button class="btn btn-danger" id="delete-account-btn">
+            <span class="material-symbols-outlined" style="font-size:18px">delete_forever</span>
+            Delete account
+          </button>
+        </div>
+
+        <!-- Delete confirmation modal -->
+        <div class="modal-overlay" id="delete-modal" style="display:none">
+          <div class="modal-card">
+            <h3>Delete your account?</h3>
+            <p>This will permanently delete your account and remove all your saved books. This cannot be undone.</p>
+            <p class="error-msg" id="delete-error"></p>
+            <div class="modal-actions">
+              <button class="btn btn-outline" id="cancel-delete">Cancel</button>
+              <button class="btn btn-danger" id="confirm-delete">Delete my account</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  async function initSettings() {
+    const token = localStorage.getItem("convex_token");
+    const loadingEl = document.getElementById("settings-loading");
+    const noauthEl = document.getElementById("settings-noauth");
+    const contentEl = document.getElementById("settings-content");
+
+    if (!token) {
+      if (loadingEl) loadingEl.style.display = "none";
+      if (noauthEl) noauthEl.style.display = "block";
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/auth/me", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      if (!res.ok) throw new Error("Failed to load user data");
+      const user = await res.json();
+
+      (document.getElementById("display-name") as HTMLInputElement).value = user.name;
+      (document.getElementById("display-email") as HTMLInputElement).value = user.email;
+
+      const chipEl = document.getElementById("provider-chip");
+      if (chipEl) {
+        if (user.provider === "google") {
+          chipEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">g_mobiledata</span> Google';
+        } else {
+          chipEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">mail</span> Email';
+        }
+      }
+
+      const memberSince = new Date(user._creationTime);
+      const memberEl = document.getElementById("member-since");
+      if (memberEl) {
+        memberEl.textContent = memberSince.toLocaleDateString("en-US", {
+          year: "numeric", month: "long", day: "numeric",
+        });
+      }
+
+      if (user.provider === "email") {
+        const secSection = document.getElementById("security-section");
+        if (secSection) secSection.style.display = "block";
+      }
+
+      if (loadingEl) loadingEl.style.display = "none";
+      if (contentEl) contentEl.style.display = "block";
+    } catch {
+      if (loadingEl) {
+        loadingEl.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">error_outline</span><h2>Something went wrong</h2><p>Could not load your settings. Please try again.</p></div>';
+      }
+      return;
+    }
+
+    // Profile form
+    const profileForm = document.getElementById("profile-form") as HTMLFormElement;
+    profileForm?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById("profile-error");
+      const successEl = document.getElementById("profile-success");
+      if (errorEl) errorEl.textContent = "";
+      if (successEl) successEl.textContent = "";
+
+      const name = (document.getElementById("display-name") as HTMLInputElement).value.trim();
+      if (!name) {
+        if (errorEl) errorEl.textContent = "Name cannot be empty.";
+        return;
+      }
+
+      const btn = profileForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+      if (btn) btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/auth/update-profile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify({ name }),
+        });
+        if (!res.ok) {
+          const body = await res.json();
+          throw new Error(body.error || "Update failed");
+        }
+        if (successEl) successEl.textContent = "Profile updated successfully.";
+        localStorage.setItem("user_name", name);
+      } catch (err: any) {
+        if (errorEl) errorEl.textContent = err.message;
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+
+    // Password form
+    const passwordForm = document.getElementById("password-form") as HTMLFormElement;
+    passwordForm?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById("password-error");
+      const successEl = document.getElementById("password-success");
+      if (errorEl) errorEl.textContent = "";
+      if (successEl) successEl.textContent = "";
+
+      const currentPassword = (document.getElementById("current-password") as HTMLInputElement).value;
+      const newPassword = (document.getElementById("new-password") as HTMLInputElement).value;
+      const confirmPassword = (document.getElementById("confirm-password") as HTMLInputElement).value;
+
+      if (newPassword !== confirmPassword) {
+        if (errorEl) errorEl.textContent = "New passwords do not match.";
+        return;
+      }
+      if (newPassword.length < 8) {
+        if (errorEl) errorEl.textContent = "New password must be at least 8 characters.";
+        return;
+      }
+
+      const btn = passwordForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+      if (btn) btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/auth/change-password", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify({ currentPassword, newPassword }),
+        });
+        if (!res.ok) {
+          const body = await res.json();
+          throw new Error(body.error || "Password change failed");
+        }
+        if (successEl) successEl.textContent = "Password changed successfully.";
+        passwordForm.reset();
+      } catch (err: any) {
+        if (errorEl) errorEl.textContent = err.message;
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+
+    // Delete account
+    const deleteBtn = document.getElementById("delete-account-btn");
+    const deleteModal = document.getElementById("delete-modal");
+    const cancelDelete = document.getElementById("cancel-delete");
+    const confirmDelete = document.getElementById("confirm-delete");
+
+    deleteBtn?.addEventListener("click", () => {
+      if (deleteModal) deleteModal.style.display = "flex";
+    });
+
+    cancelDelete?.addEventListener("click", () => {
+      if (deleteModal) deleteModal.style.display = "none";
+    });
+
+    deleteModal?.addEventListener("click", (e) => {
+      if (e.target === deleteModal) deleteModal.style.display = "none";
+    });
+
+    confirmDelete?.addEventListener("click", async () => {
+      const errorEl = document.getElementById("delete-error");
+      if (errorEl) errorEl.textContent = "";
+      if (confirmDelete) {
+        (confirmDelete as HTMLButtonElement).disabled = true;
+        confirmDelete.textContent = "Deleting...";
+      }
+
+      try {
+        const res = await fetch("/api/auth/delete-account", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+        });
+        if (!res.ok) {
+          const body = await res.json();
+          throw new Error(body.error || "Deletion failed");
+        }
+        localStorage.removeItem("convex_token");
+        localStorage.removeItem("user_name");
+        localStorage.removeItem("user_email");
+        window.location.href = "/";
+      } catch (err: any) {
+        if (errorEl) errorEl.textContent = err.message;
+        if (confirmDelete) {
+          (confirmDelete as HTMLButtonElement).disabled = false;
+          confirmDelete.textContent = "Delete my account";
+        }
+      }
+    });
+  }
+
+  initSettings();
+</script>
+
+<style>
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  .settings-page {
+    display: flex;
+    justify-content: center;
+    padding-top: 24px;
+  }
+  .settings-card {
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 80px 24px;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+  }
+
+  .settings-section {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-light);
+    padding: 32px;
+    margin-bottom: 20px;
+  }
+
+  .settings-section-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-border-light);
+  }
+  .settings-section-title .material-symbols-outlined {
+    font-size: 22px;
+    color: var(--color-primary);
+  }
+
+  .input-group {
+    margin-bottom: 20px;
+  }
+  .input-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+  }
+  .input-group input {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-surface);
+    transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+  }
+  .input-group input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+  }
+  .input-group input:disabled {
+    background: var(--color-surface-variant);
+    color: var(--color-text-tertiary);
+    cursor: not-allowed;
+  }
+
+  .info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    font-size: 14px;
+  }
+  .info-label {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    font-size: 13px;
+  }
+  .info-value {
+    color: var(--color-text);
+  }
+
+  .error-msg {
+    color: var(--color-danger);
+    font-size: 13px;
+    min-height: 1.2em;
+    margin-bottom: 4px;
+  }
+  .success-msg {
+    color: var(--color-success);
+    font-size: 13px;
+    min-height: 1.2em;
+    margin-bottom: 4px;
+  }
+
+  .submit-btn {
+    margin-top: 4px;
+  }
+
+  .danger-zone {
+    border-color: var(--color-danger-light);
+    background: var(--color-danger-light);
+  }
+  .danger-zone .settings-section-title {
+    border-bottom-color: var(--color-danger-light);
+  }
+  .danger-zone .settings-section-title .material-symbols-outlined {
+    color: var(--color-danger);
+  }
+  .danger-description {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+  }
+  .modal-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: var(--shadow-xl);
+  }
+  .modal-card h3 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+  .modal-card p {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin-bottom: 24px;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+  }
+
+  @media (max-width: 768px) {
+    .settings-page { padding-top: 0; }
+    .settings-section { padding: 24px 20px; }
+    .modal-card { padding: 24px; }
+  }
+</style>

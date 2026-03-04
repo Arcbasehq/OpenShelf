@@ -1,0 +1,33 @@
+---
+import Layout from "../layouts/Layout.astro";
+import BookSearch from "../components/BookSearch.astro";
+
+// Read query param and fetch results server-side
+const query = Astro.url.searchParams.get("q") ?? "";
+let results: any[] = [];
+
+if (query.trim()) {
+  const apiKey = import.meta.env.GOOGLE_BOOKS_API_KEY ?? "";
+  const url = new URL("https://www.googleapis.com/books/v1/volumes");
+  url.searchParams.set("q", query);
+  url.searchParams.set("maxResults", "20");
+  if (apiKey) url.searchParams.set("key", apiKey);
+
+  try {
+    const res = await fetch(url.toString());
+    if (res.ok) {
+      const data = await res.json();
+      results = data.items ?? [];
+    } else {
+      console.error("Google Books API error:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("Google Books fetch failed:", err);
+  }
+}
+---
+
+<Layout title={query ? `${query} - OpenShelf Search` : "Search - OpenShelf"}>
+  <h1 class="section-title">Search books</h1>
+  <BookSearch query={query} results={results} />
+</Layout>

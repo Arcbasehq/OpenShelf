@@ -1,0 +1,198 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Create account - OpenShelf">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-header">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 4H3a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z" fill="#E8F0FE"/>
+          <path d="M12 4v16M12 4c-1.5 0-4.5.5-6 1.5V18c1.5-1 4.5-1.5 6-1.5m0-12.5c1.5 0 4.5.5 6 1.5V18c-1.5-1-4.5-1.5-6-1.5" stroke="#1A73E8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h1>Create account</h1>
+        <p class="subtitle">to start using OpenShelf</p>
+      </div>
+
+      <form id="signup-form">
+        <div class="input-group">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required placeholder="Your name" autocomplete="name" />
+        </div>
+        <div class="input-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <div class="input-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required placeholder="Min 8 characters" minlength="8" autocomplete="new-password" />
+        </div>
+        <p class="error-msg" id="error-msg"></p>
+        <button class="btn btn-primary submit-btn" type="submit">Create account</button>
+      </form>
+
+      <div class="divider"><span>or</span></div>
+
+      <button class="btn btn-outline google-btn" id="google-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.26c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
+          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <p class="switch-link">
+        Already have an account? <a href="/login">Sign in</a>
+      </p>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  const form = document.getElementById("signup-form") as HTMLFormElement;
+  const errorMsg = document.getElementById("error-msg") as HTMLElement;
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorMsg.textContent = "";
+
+    const data = new FormData(form);
+    const name = data.get("name") as string;
+    const email = data.get("email") as string;
+    const password = data.get("password") as string;
+
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error || "Sign-up failed");
+      }
+
+      const { token } = await res.json();
+      localStorage.setItem("convex_token", token);
+      localStorage.setItem("user_name", name);
+      localStorage.setItem("user_email", email);
+      window.location.href = "/favorites";
+    } catch (err: any) {
+      errorMsg.textContent = err.message;
+    }
+  });
+
+  document.getElementById("google-btn")?.addEventListener("click", () => {
+    const convexUrl = (import.meta as any).env?.PUBLIC_CONVEX_URL;
+    if (convexUrl) {
+      window.location.href = `${convexUrl}/auth/google`;
+    }
+  });
+</script>
+
+<style>
+  .auth-page {
+    display: flex;
+    justify-content: center;
+    padding-top: 48px;
+  }
+  .auth-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-light);
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 400px;
+  }
+  .auth-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .auth-header svg {
+    margin-bottom: 16px;
+  }
+  .auth-header h1 {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 4px;
+    letter-spacing: -0.2px;
+  }
+  .subtitle {
+    color: var(--color-text-secondary);
+    font-size: 14px;
+  }
+  .input-group {
+    margin-bottom: 20px;
+  }
+  .input-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+  }
+  .input-group input {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-surface);
+    transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+  }
+  .input-group input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+  }
+  .input-group input::placeholder {
+    color: var(--color-text-tertiary);
+  }
+  .submit-btn {
+    width: 100%;
+    height: 44px;
+    margin-top: 4px;
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    margin: 24px 0;
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+  }
+  .divider::before,
+  .divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--color-border-light);
+  }
+  .divider span {
+    padding: 0 12px;
+  }
+  .google-btn {
+    width: 100%;
+    height: 44px;
+    gap: 10px;
+    font-weight: 500;
+  }
+  .switch-link {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+  }
+  .error-msg {
+    color: var(--color-danger);
+    font-size: 13px;
+    min-height: 1.2em;
+    margin-bottom: 4px;
+  }
+</style>

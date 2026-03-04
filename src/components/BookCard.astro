@@ -1,0 +1,62 @@
+---
+interface Props {
+  googleId: string;
+  title: string;
+  authors: string[];
+  thumbnail?: string;
+  description?: string;
+  showFavorite?: boolean;
+}
+
+const { googleId, title, authors, thumbnail, description, showFavorite = true } = Astro.props;
+
+// Upgrade Google Books thumbnail to higher resolution
+function getHighResThumbnail(url?: string): string {
+  if (!url) return "";
+  let highRes = url.replace("http://", "https://");
+  // Replace zoom=1 with zoom=2 for sharper images
+  highRes = highRes.replace(/zoom=\d/, "zoom=2");
+  // Remove edge curl effect for cleaner look
+  highRes = highRes.replace(/&edge=curl/, "");
+  return highRes;
+}
+
+const coverUrl = getHighResThumbnail(thumbnail);
+---
+
+<article class="book-card">
+  <a href={`/books/${googleId}`} class="cover-wrap">
+    {coverUrl ? (
+      <img
+        src={coverUrl}
+        alt={title}
+        loading="lazy"
+        decoding="async"
+        data-loaded="false"
+        onload="this.dataset.loaded='true'"
+      />
+    ) : null}
+    <div class="cover-placeholder">
+      <span class="material-symbols-outlined">auto_stories</span>
+    </div>
+  </a>
+  <div class="card-body">
+    <a href={`/books/${googleId}`} class="card-title">{title}</a>
+    <span class="card-authors">{authors.join(", ") || "Unknown author"}</span>
+    {showFavorite && (
+      <div class="card-actions">
+        <button
+          class="btn btn-tonal fav-btn"
+          data-google-id={googleId}
+          data-title={title}
+          data-authors={JSON.stringify(authors)}
+          data-thumbnail={thumbnail ?? ""}
+          data-description={description ?? ""}
+        >
+          <span class="material-symbols-outlined">bookmark_add</span>
+          Save
+        </button>
+      </div>
+    )}
+  </div>
+</article>

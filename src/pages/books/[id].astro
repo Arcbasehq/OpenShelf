@@ -1,0 +1,519 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FavoriteButton from "../../components/FavoriteButton.astro";
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect("/books");
+}
+
+const apiKey = import.meta.env.GOOGLE_BOOKS_API_KEY ?? "";
+const url = new URL(`https://www.googleapis.com/books/v1/volumes/${encodeURIComponent(id)}`);
+if (apiKey) url.searchParams.set("key", apiKey);
+
+let book: any = null;
+try {
+  const res = await fetch(url.toString());
+  if (res.ok) {
+    book = await res.json();
+  }
+} catch {
+  // handled below
+}
+
+if (!book) {
+  return Astro.redirect("/books");
+}
+
+const info = book.volumeInfo ?? {};
+const title: string = info.title ?? "Untitled";
+const authors: string[] = info.authors ?? [];
+const description: string = info.description ?? "No description available.";
+
+// Build high-res cover URL
+let thumbnail = "";
+const il = info.imageLinks;
+if (il) {
+  const raw = il.extraLarge ?? il.large ?? il.medium ?? il.small ?? il.thumbnail ?? il.smallThumbnail ?? "";
+  thumbnail = raw.replace("http://", "https://");
+  if (thumbnail) {
+    thumbnail = thumbnail.replace(/zoom=\d/, "zoom=3");
+    thumbnail = thumbnail.replace(/&edge=curl/g, "");
+  }
+}
+
+const publishedDate: string = info.publishedDate ?? "";
+const pageCount: number | undefined = info.pageCount;
+const categories: string[] = info.categories ?? [];
+const previewLink: string = info.previewLink ?? "";
+const embeddable: boolean = book.accessInfo?.embeddable ?? false;
+const viewability: string = book.accessInfo?.viewability ?? "NO_PAGES";
+const isbn = (info.industryIdentifiers ?? []).find((i: any) => i.type === "ISBN_13")?.identifier
+  ?? (info.industryIdentifiers ?? []).find((i: any) => i.type === "ISBN_10")?.identifier
+  ?? "";
+const publisher: string = info.publisher ?? "";
+const averageRating: number | undefined = info.averageRating;
+const ratingsCount: number | undefined = info.ratingsCount;
+
+// Can we show a reader?
+const canRead = embeddable || viewability === "PARTIAL" || viewability === "ALL_PAGES";
+---
+
+<Layout title={`${title} - OpenShelf`}>
+  <a href="/books" class="back-link">
+    <span class="material-symbols-outlined">arrow_back</span>
+    Browse
+  </a>
+
+  <div class="book-detail">
+    <aside class="book-sidebar">
+      <div class="cover-large">
+        {thumbnail ? (
+          <img src={thumbnail} alt={title} />
+        ) : (
+          <div class="no-cover">
+            <span class="material-symbols-outlined">auto_stories</span>
+          </div>
+        )}
+      </div>
+
+      <div
+        id="book-data"
+        data-google-id={id}
+        data-title={title}
+        data-authors={JSON.stringify(authors)}
+        data-thumbnail={thumbnail}
+        data-description={description}
+        style="display:none;"
+      ></div>
+
+      <div class="sidebar-actions">
+        {canRead && (
+          <button id="open-reader-btn" class="btn btn-primary" style="width:100%;justify-content:center;">
+            <span class="material-symbols-outlined">menu_book</span>
+            Read this book
+          </button>
+        )}
+        <FavoriteButton />
+        {previewLink && (
+          <a href={previewLink} target="_blank" rel="noopener noreferrer" class="btn btn-outline">
+            <span class="material-symbols-outlined">open_in_new</span>
+            Google Books
+          </a>
+        )}
+      </div>
+    </aside>
+
+    <div class="book-main">
+      <h1 class="book-title">{title}</h1>
+      <p class="book-authors">by {authors.join(", ") || "Unknown author"}</p>
+
+      {averageRating && (
+        <div class="rating-row">
+          <div class="stars">
+            {[1,2,3,4,5].map((star) => (
+              <span class="material-symbols-outlined star" style={star <= Math.round(averageRating) ? "color:#F4B400" : ""}>
+                {star <= Math.round(averageRating) ? "star" : "star_border"}
+              </span>
+            ))}
+          </div>
+          <span class="rating-text">{averageRating.toFixed(1)}</span>
+          {ratingsCount && <span class="rating-count">({ratingsCount.toLocaleString()} ratings)</span>}
+        </div>
+      )}
+
+      <div class="meta-row">
+        {publishedDate && (
+          <span class="chip">
+            <span class="material-symbols-outlined" style="font-size:16px">calendar_today</span>
+            {publishedDate}
+          </span>
+        )}
+        {pageCount && (
+          <span class="chip">
+            <span class="material-symbols-outlined" style="font-size:16px">description</span>
+            {pageCount} pages
+          </span>
+        )}
+        {publisher && (
+          <span class="chip">
+            <span class="material-symbols-outlined" style="font-size:16px">business</span>
+            {publisher}
+          </span>
+        )}
+        {categories.map((cat: string) => (
+          <span class="chip">{cat}</span>
+        ))}
+      </div>
+
+      <div class="book-description-section">
+        <h2 class="desc-heading">About this book</h2>
+        <div class="book-description" set:html={description} />
+      </div>
+
+      {canRead && (
+        <div id="reader-modal" class="reader-modal" style="display:none;">
+          <div class="reader-modal-header">
+            <span class="reader-modal-title">{title}</span>
+            <div class="reader-header-controls">
+              <span id="page-indicator" class="page-indicator"></span>
+              <button id="close-reader-btn" class="reader-close-btn" aria-label="Close reader">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+          </div>
+          <div class="reader-body">
+            <button id="prev-page-btn" class="reader-nav-btn nav-left" aria-label="Previous page">
+              <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <div id="reader-container" class="reader-container-modal">
+              <div class="reader-loading" id="reader-loading">
+                <span class="material-symbols-outlined spin">progress_activity</span>
+                <span id="reader-loading-text">Loading book...</span>
+              </div>
+            </div>
+            <button id="next-page-btn" class="reader-nav-btn nav-right" aria-label="Next page">
+              <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</Layout>
+
+{canRead && (
+  <script define:vars={{ bookId: id }}>
+    const modal = document.getElementById("reader-modal");
+    const openBtn = document.getElementById("open-reader-btn");
+    const closeBtn = document.getElementById("close-reader-btn");
+    let readerLoaded = false;
+
+    function openReader() {
+      if (!modal) return;
+      modal.style.display = "flex";
+      document.body.style.overflow = "hidden";
+      if (!readerLoaded) {
+        readerLoaded = true;
+        loadReader();
+      }
+    }
+
+    function closeReader() {
+      if (!modal) return;
+      modal.style.display = "none";
+      document.body.style.overflow = "";
+    }
+
+    if (openBtn) openBtn.addEventListener("click", openReader);
+    if (closeBtn) closeBtn.addEventListener("click", closeReader);
+
+    document.addEventListener("keydown", (e) => {
+      if (!modal || modal.style.display !== "flex") return;
+      if (e.key === "Escape") closeReader();
+    });
+
+    function loadReader() {
+      const container = document.getElementById("reader-container");
+      const loading = document.getElementById("reader-loading");
+      if (!container) return;
+
+      if (loading) loading.style.display = "none";
+      const prevBtn = document.getElementById("prev-page-btn");
+      const nextBtn = document.getElementById("next-page-btn");
+      if (prevBtn) prevBtn.style.display = "none";
+      if (nextBtn) nextBtn.style.display = "none";
+
+      const iframeUrl = "https://books.google.com/books?id=" + encodeURIComponent(bookId) + "&lpg=PP1&pg=PP1&output=embed";
+      container.innerHTML = '<iframe src="' + iframeUrl + '" style="width:100%;height:100%;border:none;" allowfullscreen title="Book reader"></iframe>';
+    }
+  </script>
+)}
+
+<style>
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 28px;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    transition: color var(--duration) var(--ease);
+  }
+  .back-link:hover {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+  .back-link .material-symbols-outlined {
+    font-size: 18px;
+  }
+
+  .book-detail {
+    display: flex;
+    gap: 56px;
+    align-items: flex-start;
+  }
+
+  .book-sidebar {
+    flex-shrink: 0;
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 88px;
+  }
+
+  .cover-large img {
+    width: 260px;
+    height: auto;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+  }
+  .no-cover {
+    width: 260px;
+    height: 390px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface-variant);
+  }
+  .no-cover .material-symbols-outlined {
+    font-size: 64px;
+    color: var(--color-text-tertiary);
+  }
+
+  .sidebar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sidebar-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .book-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .book-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.25;
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+  .book-authors {
+    font-size: 16px;
+    color: var(--color-text-secondary);
+    margin-bottom: 16px;
+  }
+
+  .rating-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stars {
+    display: flex;
+    gap: 1px;
+  }
+  .star {
+    font-size: 18px;
+    color: var(--color-border);
+  }
+  .rating-text {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-text);
+  }
+  .rating-count {
+    font-size: 13px;
+    color: var(--color-text-tertiary);
+  }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+
+  .book-description-section {
+    max-width: 720px;
+  }
+  .desc-heading {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    color: var(--color-text);
+    letter-spacing: -0.1px;
+  }
+  .book-description {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--color-text-secondary);
+  }
+  .book-description :global(b),
+  .book-description :global(strong) {
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  .reader-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    background: #1a1a1a;
+    animation: fadeIn 0.25s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .reader-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: #111;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .reader-modal-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+  .reader-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .page-indicator {
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .reader-close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+  .reader-close-btn:hover {
+    background: rgba(255,255,255,0.12);
+  }
+  .reader-close-btn .material-symbols-outlined {
+    font-size: 24px;
+  }
+
+  .reader-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .reader-nav-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    width: 56px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+  }
+  .reader-nav-btn:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.06);
+  }
+  .reader-nav-btn .material-symbols-outlined {
+    font-size: 36px;
+  }
+
+  .reader-container-modal {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .reader-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: rgba(255,255,255,0.6);
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @media (max-width: 768px) {
+    .book-detail {
+      flex-direction: column;
+      gap: 28px;
+    }
+    .book-sidebar {
+      width: 100%;
+      position: static;
+      align-items: center;
+    }
+    .cover-large img,
+    .no-cover {
+      width: 200px;
+      height: auto;
+    }
+    .no-cover { height: 300px; }
+    .sidebar-actions {
+      flex-direction: row;
+      width: 100%;
+    }
+    .book-title {
+      font-size: 24px;
+    }
+    .reader-nav-btn {
+      width: 36px;
+    }
+    .reader-nav-btn .material-symbols-outlined {
+      font-size: 28px;
+    }
+  }
+</style>

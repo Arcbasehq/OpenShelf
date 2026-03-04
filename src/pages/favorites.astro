@@ -1,0 +1,125 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="My Library - OpenShelf">
+  <h1 class="section-title">My Library</h1>
+  <p class="section-subtitle">Books you have saved for later.</p>
+
+  <div id="favorites-container">
+    <div class="empty-state" id="loading-msg">
+      <span class="material-symbols-outlined spin">progress_activity</span>
+      <p>Loading your library...</p>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+</style>
+
+<script>
+  function upgradeThumb(url: string): string {
+    if (!url) return "";
+    let u = url.replace("http://", "https://");
+    u = u.replace(/zoom=\d/, "zoom=2");
+    u = u.replace(/&edge=curl/, "");
+    return u;
+  }
+
+  async function loadFavorites() {
+    const container = document.getElementById("favorites-container")!;
+    const token = localStorage.getItem("convex_token");
+
+    if (!token) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <span class="material-symbols-outlined">login</span>
+          <h2>Sign in to see your library</h2>
+          <p>Save books and access them from anywhere</p>
+          <a href="/login" class="btn btn-primary">Sign in</a>
+        </div>`;
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/favorites", {
+        headers: { Authorization: "Bearer " + token },
+      });
+
+      if (!res.ok) throw new Error("Failed to load");
+      const books = await res.json();
+
+      if (books.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <span class="material-symbols-outlined">bookmark_border</span>
+            <h2>Your library is empty</h2>
+            <p>Search for books and save them to build your collection</p>
+            <a href="/search" class="btn btn-primary">
+              <span class="material-symbols-outlined">search</span>
+              Search books
+            </a>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = '<div class="book-grid">' + books.map((b: any) => {
+        const thumb = upgradeThumb(b.thumbnail || "");
+        const safeTitle = b.title.replace(/"/g, "&quot;").replace(/</g, "&lt;");
+        const safeAuthors = (b.authors ?? []).join(", ").replace(/</g, "&lt;") || "Unknown";
+        return '<article class="book-card">' +
+          '<a href="/books/' + b.googleId + '" class="cover-wrap">' +
+            (thumb
+              ? '<img src="' + thumb + '" alt="' + safeTitle + '" loading="lazy" decoding="async" data-loaded="false" onload="this.dataset.loaded=\'true\'" />'
+              : '') +
+            '<div class="cover-placeholder"><span class="material-symbols-outlined">auto_stories</span></div>' +
+          '</a>' +
+          '<div class="card-body">' +
+            '<a href="/books/' + b.googleId + '" class="card-title">' + safeTitle + '</a>' +
+            '<span class="card-authors">' + safeAuthors + '</span>' +
+            '<div class="card-actions">' +
+              '<button class="btn btn-outline remove-fav" data-book-id="' + b._id + '">' +
+                '<span class="material-symbols-outlined" style="font-size:16px">delete</span> Remove' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+        '</article>';
+      }).join("") + '</div>';
+
+      container.querySelectorAll(".remove-fav").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          const target = e.currentTarget as HTMLButtonElement;
+          const bookId = target.dataset.bookId;
+          target.disabled = true;
+          target.innerHTML = '<span class="material-symbols-outlined spin" style="font-size:16px">progress_activity</span>';
+
+          await fetch("/api/toggle-favorite", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify({ bookId, remove: true }),
+          });
+
+          loadFavorites();
+        });
+      });
+    } catch {
+      container.innerHTML = `
+        <div class="empty-state">
+          <span class="material-symbols-outlined">error_outline</span>
+          <h2>Something went wrong</h2>
+          <p>Please try again later</p>
+        </div>`;
+    }
+  }
+
+  loadFavorites();
+</script>

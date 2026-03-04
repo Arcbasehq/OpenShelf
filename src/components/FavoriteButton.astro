@@ -1,0 +1,63 @@
+<!--
+  FavoriteButton.astro – Client-side island for toggling favorites.
+-->
+<button class="btn btn-tonal fav-toggle" id="fav-toggle">
+  <span class="material-symbols-outlined" id="fav-icon">bookmark_add</span>
+  <span id="fav-label">Save to library</span>
+</button>
+
+<script>
+  const btn = document.getElementById("fav-toggle") as HTMLButtonElement;
+  const icon = document.getElementById("fav-icon") as HTMLSpanElement;
+  const label = document.getElementById("fav-label") as HTMLSpanElement;
+
+  const bookData = document.getElementById("book-data") as HTMLElement | null;
+
+  if (btn && bookData) {
+    const googleId = bookData.dataset.googleId ?? "";
+    const title = bookData.dataset.title ?? "";
+    const authors = JSON.parse(bookData.dataset.authors ?? "[]");
+    const thumbnail = bookData.dataset.thumbnail ?? "";
+    const description = bookData.dataset.description ?? "";
+
+    let isFav = false;
+
+    btn.addEventListener("click", async () => {
+      const token = localStorage.getItem("convex_token");
+      if (!token) {
+        window.location.href = "/login";
+        return;
+      }
+
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/toggle-favorite", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token,
+          },
+          body: JSON.stringify({
+            googleId,
+            title,
+            authors,
+            thumbnail,
+            description,
+            remove: isFav,
+          }),
+        });
+
+        if (res.ok) {
+          isFav = !isFav;
+          icon.textContent = isFav ? "bookmark_added" : "bookmark_add";
+          label.textContent = isFav ? "Saved" : "Save to library";
+          btn.classList.toggle("btn-primary", isFav);
+          btn.classList.toggle("btn-tonal", !isFav);
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+</script>

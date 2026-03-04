@@ -1,0 +1,368 @@
+---
+import Layout from "../layouts/Layout.astro";
+import BookSearch from "../components/BookSearch.astro";
+import BookCard from "../components/BookCard.astro";
+
+// Fetch trending books for the landing page
+const apiKey = import.meta.env.GOOGLE_BOOKS_API_KEY ?? "";
+const trendingUrl = new URL("https://www.googleapis.com/books/v1/volumes");
+trendingUrl.searchParams.set("q", "subject:fiction");
+trendingUrl.searchParams.set("orderBy", "newest");
+trendingUrl.searchParams.set("maxResults", "8");
+if (apiKey) trendingUrl.searchParams.set("key", apiKey);
+
+let trendingBooks: any[] = [];
+try {
+  const res = await fetch(trendingUrl.toString());
+  if (res.ok) {
+    const data = await res.json();
+    trendingBooks = data.items ?? [];
+  }
+} catch {
+  // silently handle
+}
+
+// Fetch popular non-fiction
+const nonficUrl = new URL("https://www.googleapis.com/books/v1/volumes");
+nonficUrl.searchParams.set("q", "subject:nonfiction");
+nonficUrl.searchParams.set("orderBy", "relevance");
+nonficUrl.searchParams.set("maxResults", "4");
+if (apiKey) nonficUrl.searchParams.set("key", apiKey);
+
+let nonfictionBooks: any[] = [];
+try {
+  const res = await fetch(nonficUrl.toString());
+  if (res.ok) {
+    const data = await res.json();
+    nonfictionBooks = data.items ?? [];
+  }
+} catch {
+  // silently handle
+}
+---
+
+<Layout title="OpenShelf">
+  <section class="hero">
+    <h1>Find your next great read</h1>
+    <p class="hero-sub">Search millions of books, save your favorites, and start reading -- all in one place.</p>
+    <BookSearch />
+  </section>
+
+  <section class="features-section">
+    <div class="features">
+      <div class="feature-card">
+        <div class="feature-icon-wrap">
+          <span class="material-symbols-outlined">search</span>
+        </div>
+        <h3>Search</h3>
+        <p>Instantly search the entire Google Books catalog by title, author, or topic.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-wrap">
+          <span class="material-symbols-outlined">bookmark</span>
+        </div>
+        <h3>Save</h3>
+        <p>Build a personal library of your favorite books with one click.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-wrap">
+          <span class="material-symbols-outlined">auto_stories</span>
+        </div>
+        <h3>Read</h3>
+        <p>Preview and read books directly in your browser, no downloads needed.</p>
+      </div>
+    </div>
+  </section>
+
+  {trendingBooks.length > 0 && (
+    <section class="books-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Trending now</h2>
+          <p class="section-subtitle">Fresh picks from the world of fiction</p>
+        </div>
+        <a href="/books" class="btn btn-tonal">
+          Browse all
+          <span class="material-symbols-outlined">arrow_forward</span>
+        </a>
+      </div>
+      <div class="book-grid">
+        {trendingBooks.map((book: any) => {
+          const info = book.volumeInfo ?? {};
+          const il = info.imageLinks;
+          return (
+            <BookCard
+              googleId={book.id}
+              title={info.title ?? "Untitled"}
+              authors={info.authors ?? []}
+              thumbnail={il?.thumbnail ?? il?.smallThumbnail ?? ""}
+              description={info.description ?? ""}
+            />
+          );
+        })}
+      </div>
+    </section>
+  )}
+
+  {nonfictionBooks.length > 0 && (
+    <section class="books-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Non-fiction picks</h2>
+          <p class="section-subtitle">Expand your knowledge with these popular reads</p>
+        </div>
+        <a href="/search?q=subject%3Anonfiction" class="btn btn-tonal">
+          See more
+          <span class="material-symbols-outlined">arrow_forward</span>
+        </a>
+      </div>
+      <div class="book-grid">
+        {nonfictionBooks.map((book: any) => {
+          const info = book.volumeInfo ?? {};
+          const il = info.imageLinks;
+          return (
+            <BookCard
+              googleId={book.id}
+              title={info.title ?? "Untitled"}
+              authors={info.authors ?? []}
+              thumbnail={il?.thumbnail ?? il?.smallThumbnail ?? ""}
+              description={info.description ?? ""}
+            />
+          );
+        })}
+      </div>
+    </section>
+  )}
+
+  <section class="stats-section">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-number">40M+</span>
+        <span class="stat-label">Books available</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">100+</span>
+        <span class="stat-label">Languages</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">Free</span>
+        <span class="stat-label">To use, always</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-section" id="cta-section">
+    <div class="cta-card">
+      <span class="material-symbols-outlined cta-icon">library_books</span>
+      <h2 id="cta-heading">Start building your library</h2>
+      <p id="cta-description">Sign up to save your favorite books, track what you've read, and pick up where you left off.</p>
+      <div class="cta-actions" id="cta-actions">
+        <a href="/signup" class="btn btn-primary">
+          <span class="material-symbols-outlined">person_add</span>
+          Create account
+        </a>
+        <a href="/search" class="btn btn-outline">
+          <span class="material-symbols-outlined">search</span>
+          Search books
+        </a>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  const token = localStorage.getItem("convex_token");
+  if (token) {
+    const heading = document.getElementById("cta-heading");
+    const desc = document.getElementById("cta-description");
+    const actions = document.getElementById("cta-actions");
+    if (heading) heading.textContent = "Your library awaits";
+    if (desc) desc.textContent = "Browse your saved favorites and pick up where you left off.";
+    if (actions) {
+      actions.innerHTML = `
+        <a href="/favorites" class="btn btn-primary">
+          <span class="material-symbols-outlined">collections_bookmark</span>
+          My Library
+        </a>
+        <a href="/search" class="btn btn-outline">
+          <span class="material-symbols-outlined">search</span>
+          Search books
+        </a>`;
+    }
+  }
+</script>
+
+<style>
+  .hero {
+    text-align: center;
+    padding: 72px 0 48px;
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    color: var(--color-text);
+    letter-spacing: -0.5px;
+  }
+  .hero-sub {
+    color: var(--color-text-secondary);
+    font-size: 17px;
+    margin-bottom: 48px;
+    line-height: 1.5;
+    max-width: 540px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .hero :global(.search-bar) {
+    margin: 0 auto;
+  }
+
+  .features-section {
+    padding-top: 32px;
+  }
+  .features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .feature-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-light);
+    padding: 32px 28px;
+    text-align: center;
+    transition: box-shadow var(--duration) var(--ease), border-color var(--duration) var(--ease);
+  }
+  .feature-card:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--color-border);
+  }
+  .feature-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    background: var(--color-primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+  }
+  .feature-icon-wrap .material-symbols-outlined {
+    font-size: 24px;
+    color: var(--color-primary);
+  }
+  .feature-card h3 {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--color-text);
+  }
+  .feature-card p {
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  /* ── Book Sections ── */
+  .books-section {
+    margin-top: 56px;
+  }
+  .section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 16px;
+  }
+  .section-header .section-title {
+    margin-bottom: 4px;
+  }
+  .section-header .section-subtitle {
+    margin-bottom: 0;
+  }
+
+  /* ── Stats Section ── */
+  .stats-section {
+    margin-top: 64px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .stat-card {
+    text-align: center;
+    padding: 32px 20px;
+    border-radius: var(--radius-lg);
+    background: var(--color-primary-light);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .stat-number {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 500;
+    color: var(--color-primary);
+    letter-spacing: -0.5px;
+  }
+  .stat-label {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+  }
+
+  /* ── CTA Section ── */
+  .cta-section {
+    margin-top: 64px;
+    margin-bottom: 16px;
+  }
+  .cta-card {
+    text-align: center;
+    padding: 56px 32px;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-border-light);
+    background: var(--color-surface-variant);
+  }
+  .cta-icon {
+    font-size: 48px;
+    color: var(--color-primary);
+    margin-bottom: 16px;
+  }
+  .cta-card h2 {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--color-text);
+    margin-bottom: 12px;
+    letter-spacing: -0.3px;
+  }
+  .cta-card p {
+    color: var(--color-text-secondary);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 480px;
+    margin: 0 auto 28px;
+  }
+  .cta-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 768px) {
+    .hero { padding: 48px 0 32px; }
+    .hero h1 { font-size: 32px; }
+    .hero-sub { font-size: 15px; margin-bottom: 32px; }
+    .features { grid-template-columns: 1fr; gap: 12px; }
+    .section-header { flex-direction: column; align-items: flex-start; }
+    .stats-grid { grid-template-columns: 1fr; gap: 12px; }
+    .stat-card { padding: 24px 20px; }
+    .stat-number { font-size: 28px; }
+    .cta-card { padding: 40px 20px; }
+    .cta-card h2 { font-size: 22px; }
+  }
+</style>

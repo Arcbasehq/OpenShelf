@@ -1,0 +1,50 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import BookCard from "../../components/BookCard.astro";
+
+// Fetch trending / popular books on page load
+const apiKey = import.meta.env.GOOGLE_BOOKS_API_KEY ?? "";
+const url = new URL("https://www.googleapis.com/books/v1/volumes");
+url.searchParams.set("q", "subject:fiction");
+url.searchParams.set("orderBy", "relevance");
+url.searchParams.set("maxResults", "20");
+if (apiKey) url.searchParams.set("key", apiKey);
+
+let books: any[] = [];
+try {
+  const res = await fetch(url.toString());
+  if (res.ok) {
+    const data = await res.json();
+    books = data.items ?? [];
+  }
+} catch {
+  // Silently handle API errors at build/SSR time
+}
+---
+
+<Layout title="Browse Books - OpenShelf">
+  <h1 class="section-title">Browse books</h1>
+  <p class="section-subtitle">
+    Popular fiction picks. Use <a href="/search">Search</a> to find specific titles.
+  </p>
+
+  {books.length > 0 ? (
+    <div class="book-grid">
+      {books.map((book: any) => (
+        <BookCard
+          googleId={book.id}
+          title={book.volumeInfo?.title ?? "Untitled"}
+          authors={book.volumeInfo?.authors ?? []}
+          thumbnail={book.volumeInfo?.imageLinks?.thumbnail}
+          description={book.volumeInfo?.description}
+        />
+      ))}
+    </div>
+  ) : (
+    <div class="empty-state">
+      <span class="material-symbols-outlined">cloud_off</span>
+      <h2>Unable to load books</h2>
+      <p>Please try again later</p>
+    </div>
+  )}
+</Layout>
