@@ -20,9 +20,7 @@ const { title = "OpenShelf" } = Astro.props;
     <title>{title} | Free and Open Source Books</title>
     <script is:inline>
       (function() {
-        const saved = localStorage.getItem("theme");
-        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        if (saved === "dark" || (!saved && prefersDark)) {
+        if (localStorage.getItem("theme") === "dark") {
           document.documentElement.setAttribute("data-theme", "dark");
         }
       })();
@@ -71,6 +69,20 @@ const { title = "OpenShelf" } = Astro.props;
         <span>Made by <a href="https://arcbase.one" target="_blank" rel="noopener noreferrer">Arcbase</a></span>
       </div>
     </footer>
+
+    <!-- Cookie Consent Banner -->
+    <div class="cookie-banner" id="cookie-banner">
+      <div class="cookie-inner">
+        <span class="material-symbols-outlined cookie-icon">cookie</span>
+        <div class="cookie-text">
+          <p>We use cookies and local storage to improve your experience, remember your preferences, and keep you signed in.</p>
+        </div>
+        <div class="cookie-actions">
+          <button class="btn btn-outline cookie-decline" id="cookie-decline">Decline</button>
+          <button class="btn btn-primary cookie-accept" id="cookie-accept">Accept</button>
+        </div>
+      </div>
+    </div>
 
     <script>
       import { ConvexClient } from "convex/browser";
@@ -181,6 +193,23 @@ const { title = "OpenShelf" } = Astro.props;
           localStorage.setItem("theme", "dark");
         }
         updateThemeIcon();
+      });
+
+      // Cookie consent banner
+      const cookieBanner = document.getElementById("cookie-banner");
+      const cookieConsent = localStorage.getItem("cookie_consent");
+      if (cookieBanner && !cookieConsent) {
+        cookieBanner.classList.add("visible");
+      }
+      document.getElementById("cookie-accept")?.addEventListener("click", () => {
+        localStorage.setItem("cookie_consent", "accepted");
+        cookieBanner?.classList.remove("visible");
+      });
+      document.getElementById("cookie-decline")?.addEventListener("click", () => {
+        localStorage.setItem("cookie_consent", "declined");
+        cookieBanner?.classList.remove("visible");
+        // Clear non-essential storage
+        localStorage.removeItem("theme");
       });
     </script>
 
@@ -751,6 +780,69 @@ const { title = "OpenShelf" } = Astro.props;
         color: var(--color-text-secondary);
         margin-bottom: 24px;
         line-height: 1.5;
+      }
+
+      /* ── Cookie Banner ── */
+      .cookie-banner {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        transform: translateY(100%);
+        opacity: 0;
+        transition: transform 350ms var(--ease), opacity 350ms var(--ease);
+        pointer-events: none;
+      }
+      .cookie-banner.visible {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .cookie-inner {
+        max-width: var(--max-w);
+        margin: 0 auto;
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: var(--color-surface);
+        border-top: 1px solid var(--color-border-light);
+        box-shadow: 0 -4px 16px rgba(0,0,0,.08);
+      }
+      :root[data-theme="dark"] .cookie-inner {
+        box-shadow: 0 -4px 16px rgba(0,0,0,.3);
+      }
+      .cookie-icon {
+        font-size: 28px;
+        color: var(--color-primary);
+        flex-shrink: 0;
+      }
+      .cookie-text p {
+        font-size: 13px;
+        color: var(--color-text-secondary);
+        line-height: 1.5;
+        margin: 0;
+      }
+      .cookie-actions {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .cookie-actions .btn {
+        height: 36px;
+        padding: 0 20px;
+        font-size: 13px;
+      }
+      @media (max-width: 768px) {
+        .cookie-inner {
+          flex-wrap: wrap;
+          padding: 16px;
+          gap: 12px;
+        }
+        .cookie-icon { display: none; }
+        .cookie-actions { width: 100%; }
+        .cookie-actions .btn { flex: 1; }
       }
 
       /* ── Responsive ── */
